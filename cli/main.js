@@ -8,6 +8,12 @@ var godmode = false;
 
 var soc = io();
 
+var xDown = null;
+var yDown = null;
+var xUp = null;
+var yUp = null;
+var touchActive = false;
+
 function onload(){
 
     cSamp = document.getElementById("colSample");
@@ -22,52 +28,72 @@ function onload(){
     resize();
     setInterval(update,200);
 
-    can.addEventListener('touchstart', handleTouchStart, false);        
+    can.addEventListener('touchstart', handleTouchStart, false);
     can.addEventListener('touchmove', handleTouchMove, false);
+    can.addEventListener('touchend', handleTouchEnd, false);
 
-    var xDown = null;                                                        
+    var xDown = null;
     var yDown = null;
 }
 
-function handleTouchStart(evt) {                                         
-    xDown = evt.touches[0].clientX;                                      
-    yDown = evt.touches[0].clientY;                                      
-};                                                
+function handleTouchStart(evt) {
+    evt.preventDefault();
+    xDown = evt.touches[0].clientX;
+    yDown = evt.touches[0].clientY;
+    touchActive = true;
+};
 
 function handleTouchMove(evt) {
-    if (!xDown || !yDown) {
+    if (!touchActive) return;
+    evt.preventDefault();
+    
+    // Atualiza as coordenadas atuais durante o movimento
+    xUp = evt.touches[0].clientX;
+    yUp = evt.touches[0].clientY;
+};
+
+function handleTouchEnd(evt) {
+    if (!touchActive || !xDown || !yDown || !xUp || !yUp) {
+        resetTouch();
         return;
     }
-
-    var xUp = evt.touches[0].clientX;                                    
-    var yUp = evt.touches[0].clientY;
-
+    
+    evt.preventDefault();
+    
     var xDiff = xDown - xUp;
     var yDiff = yDown - yUp;
-
-    // Detecta a direção principal do swipe
-    if (Math.abs(xDiff) > Math.abs(yDiff)) {
-        if (xDiff > 0) {
-            // Swipe para esquerda
-            dirqueue.unshift(3); // mesma direção que ArrowLeft
+    
+    // Limiar mínimo para considerar um swipe (em pixels)
+    var threshold = 30;
+    
+    // Só processa se o movimento foi significativo
+    if (Math.abs(xDiff) > threshold || Math.abs(yDiff) > threshold) {
+        // Detecta a direção principal do swipe
+        if (Math.abs(xDiff) > Math.abs(yDiff)) {
+            if (xDiff > 0) {
+                dirqueue.unshift(3); // Swipe para esquerda
+            } else {
+                dirqueue.unshift(1); // Swipe para direita
+            }
         } else {
-            // Swipe para direita
-            dirqueue.unshift(1); // mesma direção que ArrowRight
-        }                       
-    } else {
-        if (yDiff > 0) {
-            // Swipe para cima
-            dirqueue.unshift(0); // mesma direção que ArrowUp
-        } else { 
-            // Swipe para baixo
-            dirqueue.unshift(2); // mesma direção que ArrowDown
-        }                                                                 
+            if (yDiff > 0) {
+                dirqueue.unshift(0); // Swipe para cima
+            } else { 
+                dirqueue.unshift(2); // Swipe para baixo
+            }
+        }
     }
     
-    // Reset das coordenadas
-    xDown = null;
-    yDown = null;                                             
+    resetTouch();
 };
+
+function resetTouch() {
+    xDown = null;
+    yDown = null;
+    xUp = null;
+    yUp = null;
+    touchActive = false;
+}
 
 function keyListener(e){
     switch(e.key){

@@ -1,0 +1,186 @@
+<html>
+    <head>
+        <title>Tron sp demo</title>
+        <script>
+            var map = [];
+            var player = {x:0, y:0, d:0, col:"#00FF00"};
+            
+            var AI = [
+                {x:0, y:0, d:0, col:"#FF0000"},
+                {x:0, y:0, d:0, col:"#FF00FF"},
+                {x:0, y:0, d:0, col:"#0000FF"}
+            ]
+
+            var dirqueue=[];
+
+            var can, c, w, h;
+
+	    function onload(){
+	        can = document.getElementById('gc');
+	        c = can.getContext('2d');
+
+	        window.addEventListener('keydown',keyListener);
+    
+	        // ADIÇÃO: Controles por Swipe
+	        can.addEventListener('touchstart', handleTouchStart, false);
+	        can.addEventListener('touchmove', handleTouchMove, false);
+
+	        clear();
+
+	        // CORREÇÃO: Inicialização correta do mapa
+	        var mapHeight = Math.floor(h/5);
+	        var mapWidth = Math.floor(w/5);
+    
+	        // Inicializa o mapa corretamente
+	        for(var i = 0; i < mapWidth; i++) {
+	            map[i] = [];
+	            for(var j = 0; j < mapHeight; j++) {
+	                map[i][j] = "#555555";
+	            }
+	        }
+
+	        player.x = Math.floor(Math.random() * mapWidth);
+	        player.y = Math.floor(Math.random() * mapHeight);
+
+	        AI.forEach(ai => {
+	            ai.x = Math.floor(Math.random() * mapWidth);
+	            ai.y = Math.floor(Math.random() * mapHeight);
+	            ai.d = Math.floor(Math.random() * 4); // Corrigido para 0-3
+	        });
+
+	        setInterval(update, 20);
+	    }
+
+            // ADIÇÃO: Funções para controle por swipe
+            function handleTouchStart(evt) {
+                const firstTouch = evt.touches[0];
+                xDown = firstTouch.clientX;
+                yDown = firstTouch.clientY;
+            }
+
+            function handleTouchMove(evt) {
+                if(!xDown || !yDown) return;
+
+                const xUp = evt.touches[0].clientX;
+                const yUp = evt.touches[0].clientY;
+
+                const xDiff = xDown - xUp;
+                const yDiff = yDown - yUp;
+
+                // Detecta a direção principal
+                if(Math.abs(xDiff) > Math.abs(yDiff)) {
+                    if(xDiff > 10) dirqueue.unshift(3); // Esquerda
+                    else if(xDiff < -10) dirqueue.unshift(1); // Direita
+                } else {
+                    if(yDiff > 10) dirqueue.unshift(0); // Cima
+                    else if(yDiff < -10) dirqueue.unshift(2); // Baixo
+                }
+
+                xDown = null;
+                yDown = null;
+            }
+
+	    // CORREÇÃO: Função updateAI com verificações de limites
+	    function updateAI(){
+	        var mapWidth = map.length;
+	        var mapHeight = mapWidth > 0 ? map[0].length : 0;
+    
+	        AI.forEach(ai => {
+	            // Verifica se as coordenadas estão dentro dos limites
+	            if(ai.x >= 0 && ai.x < mapWidth && 
+	                ai.y >= 0 && ai.y < mapHeight && 
+	                map[ai.x][ai.y] === "#555555"){
+            
+	                map[ai.x][ai.y] = ai.col;
+
+	                // Verifica obstáculos com limites seguros
+            	        var obst = [
+                	    map[ai.x][(ai.y-1 + mapHeight) % mapHeight] !== "#555555",
+	                    map[(ai.x+1) % mapWidth][ai.y] !== "#555555",
+	                    map[ai.x][(ai.y+1) % mapHeight] !== "#555555",
+	                    map[(ai.x-1 + mapWidth) % mapWidth][ai.y] !== "#555555"
+	                ];
+
+	                if(obst[ai.d]){
+	                    var opts = [
+	                        !obst[(ai.d+1) % 4], 
+	                        !obst[(ai.d+3) % 4]
+	                    ]; 
+                
+	                    if(opts[0] && opts[1]){
+	                        ai.d = (ai.d + (Math.random() > 0.5 ? 1 : 3)) % 4;
+	                    } else if(opts[0]){
+	                        ai.d = (ai.d + 1) % 4;
+	                    } else if(opts[1]){
+	                        ai.d = (ai.d + 3) % 4;
+	                    }
+	                }
+
+	                switch(ai.d){
+	                     case 0: ai.y = (ai.y - 1 + mapHeight) % mapHeight; break;
+	                     case 1: ai.x = (ai.x + 1) % mapWidth; break;
+	                     case 2: ai.y = (ai.y + 1) % mapHeight; break;
+	                     case 3: ai.x = (ai.x - 1 + mapWidth) % mapWidth;
+	                }
+	             }
+	        });
+	    }
+
+            function update(){
+                if(map[player.x][player.y]=="#555555"){
+                    map[player.x][player.y] = player.col;
+
+                    if(dirqueue.length>0){
+                        player.d=dirqueue.pop();
+                    }
+
+                    switch(player.d){
+                        case 0: player.y--; break;
+                        case 1: player.x++; break;
+                        case 2: player.y++; break;
+                        case 3: player.x--;
+                    }
+                    if(player.x<0) player.x = Math.floor(w/5)-1;
+                    if(player.y<0) player.y = Math.floor(h/5)-1;
+                    if(player.x>Math.floor(w/5)-1) player.x = 0;
+                    if(player.y>Math.floor(h/5)-1) player.y = 0;
+                } else {
+                    //die
+                }
+                updateAI();
+                draw();
+            }
+
+            function draw(){
+                for(var i = 0; i<Math.floor(w/5); i++){
+                    for(var j = 0; j<Math.floor(w/5); j++){
+                        c.fillStyle = map[i][j];
+                        c.fillRect(i*5, j*5, 5, 5);
+                    }
+                }
+            }
+
+            function keyListener(e){
+                switch(e.key){
+                    case 'w': case 'ArrowUp':   dirqueue.unshift(0); break;
+                    case 'a': case 'ArrowLeft': dirqueue.unshift(3); break;
+                    case 's': case 'ArrowDown': dirqueue.unshift(2); break;
+                    case 'd': case 'ArrowRight':dirqueue.unshift(1);
+                }
+            }
+
+            function clear(){
+                w=(can.width = window.innerWidth);
+                h=(can.height = window.innerHeight);
+            }
+
+            // Variável faltante no original
+            var gameplay = true;
+            var xDown = null;
+            var yDown = null;
+        </script>
+    </head>
+    <body onload="onload()" style="margin:0px">
+        <canvas id="gc"></canvas>
+    </body>
+</html>

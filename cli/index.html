@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <title> TRON! -Setup </title>
+        <script src="/socket.io/socket.io.js"></script>
+        <script type="text/javascript" src="SplashMap.js"></script>
+        <script type="text/javascript" src="main.js"></script>
+        <link rel="stylesheet" type="text/css" href="main.css">
+    </head>
+    <body onload="javascript:onload()">
+        <canvas id="gc"></canvas>
+        <div id="setupPane" class="pane">
+            <h1>Welcome to TRON!</h1>
+                <table>
+                    <tr><td>Name:</td><td><input id="colSample" name="name" type="text"/></td></tr>
+                    <tr><td>Red:</td><td><input oninput="udc_red(this.value)" onchange="udc_red(this.value)" type="range" id="slideRed" name="slideRed" min="0" max="255"></td></tr>
+                    <tr><td>Green:</td><td><input oninput="udc_green(this.value)" onchange="udc_green(this.value)" type="range" id="slideGreen" name="slideGreen" min="0" max="255"></td></tr>
+                    <tr><td>Blue:</td><td><input oninput="udc_blue(this.value)" onchange="udc_blue(this.value)" type="range" id="slideBlue" name="slideBlue" min="0" max="255"></td></tr>
+                </table>
+                <button onclick="javascript:joinGame()">Join!</button>
+        </div>
+
+        <div id="playersPane" class="pane" hidden>
+            <h1>Welcome to TRON!</h1>
+            <table id="Playerlist">
+                <tr><th>Player</th><th>Ready</th><th>Vote Kick</th></tr>
+            </table>
+            <button id="ReadyBtn" onclick="javascript:readyUp()">Ready?</button>
+        </div>
+
+        <div id="kickPane" class="pane" hidden>
+            <h1>You have been kicked from the game.</h1>
+        </div>
+
+        <div id="endPane" class="pane" hidden>
+            <h1>The game has ended!</h1>
+            <b id="endPaneWinner">-</b> won the game. <br/>
+            <button onclick="end_restart()">Back</button>
+        </div>
+
+        <div id="deaths">
+        </div>
+
+    </body>
+</html>

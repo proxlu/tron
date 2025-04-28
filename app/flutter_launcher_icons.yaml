@@ -1,0 +1,5 @@
+flutter_icons:
+  android: true
+  ios: false
+  image_path: "assets/ic_launcher.png" # Caminho para sua imagem
+  adaptive_icon_background: "#2d2d2d" # Cor de fundo para ícones adaptativos

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Para SystemChrome e orientação
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 void main() {
@@ -13,11 +13,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
       home: const WebViewScreen(),
-      // Configuração para forçar landscape
       builder: (context, child) {
-        // Bloqueia a orientação em landscape
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
         SystemChrome.setPreferredOrientations([
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
@@ -36,94 +34,97 @@ class WebViewScreen extends StatefulWidget {
 }
 
 class _WebViewScreenState extends State<WebViewScreen> {
-  InAppWebViewController? webViewController;
+  late InAppWebViewController webViewController;
   double progress = 0;
+  Offset? _swipeStart;
+  bool _swipeInProgress = false;
+  final double _swipeThreshold = 50;
 
   @override
   void initState() {
     super.initState();
-    // Configura a cor da barra de status
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Color.fromARGB(255, 255, 255, 255)), // Cor da barra de status
-    );
-    
-    // Força landscape ao iniciar
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-  }
-
-  @override
-  void dispose() {
-    // Restaura as orientações padrão ao sair
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255), // Cor de fundo do Scaffold
-      body: SafeArea(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onPanStart: (details) {
+          _swipeStart = details.globalPosition;
+          _swipeInProgress = true;
+        },
+        onPanUpdate: (details) {
+          if (!_swipeInProgress) return;
+          
+          final offset = details.globalPosition - _swipeStart!;
+          if (offset.distance > _swipeThreshold) {
+            _swipeInProgress = false; // Marca como processado
+            _handleSwipe(offset);
+          }
+        },
+        onPanEnd: (details) {
+          _swipeInProgress = false;
+        },
         child: Stack(
           children: [
-            // WebView
             InAppWebView(
               initialUrlRequest: URLRequest(url: WebUri("http://vps57267.publiccloud.com.br:8181")),
               initialSettings: InAppWebViewSettings(
-                transparentBackground: true, // Torna o fundo transparente
-                // Configurações adicionais para melhor experiência em landscape
+                transparentBackground: true,
                 disableVerticalScroll: true,
                 disableHorizontalScroll: false,
                 supportZoom: false,
+                javaScriptEnabled: true,
               ),
-              onWebViewCreated: (controller) {
+              onWebViewCreated: (controller) async {
                 webViewController = controller;
+                // Injeta código JavaScript para melhorar a resposta
+                await controller.evaluateJavascript(source: '''
+                  window.flutterSwipe = {
+                    pendingDirection: null,
+                    handleSwipe: function(direction) {
+                      const event = new KeyboardEvent('keydown', {
+                        key: direction,
+                        keyCode: direction === 'ArrowUp' ? 38 : 
+                                direction === 'ArrowDown' ? 40 :
+                                direction === 'ArrowLeft' ? 37 : 39,
+                        bubbles: true,
+                        cancelable: true
+                      });
+                      document.dispatchEvent(event);
+                    }
+                  };
+                ''');
               },
               onProgressChanged: (controller, progressValue) {
-                setState(() {
-                  progress = progressValue / 100;
-                });
-              },
-              onReceivedServerTrustAuthRequest: (controller, challenge) async {
-                // Permite conexão com servidor não seguro (HTTP)
-                return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
-              },
-              onLoadStart: (controller, url) {
-                setState(() {});
-              },
-              onLoadStop: (controller, url) {
-                setState(() {});
+                setState(() => progress = progressValue / 100);
               },
             ),
-
-            // Círculo de carregamento
             if (progress < 1.0)
-              Positioned.fill(
-                child: Container(
-                  color: const Color.fromARGB(255, 0, 0, 0),
-                  child: Center(
-                    child: SizedBox(
-                      width: 70,
-                      height: 70,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 10.0,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              const Center(child: CircularProgressIndicator(color: Colors.white)),
           ],
         ),
       ),
     );
+  }
+
+  void _handleSwipe(Offset offset) async {
+    final String direction;
+    
+    if (offset.dx.abs() > offset.dy.abs()) {
+      direction = offset.dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+    } else {
+      direction = offset.dy > 0 ? 'ArrowDown' : 'ArrowUp';
+    }
+
+    await webViewController.evaluateJavascript(source: '''
+      flutterSwipe.handleSwipe('$direction');
+    ''');
   }
 }
